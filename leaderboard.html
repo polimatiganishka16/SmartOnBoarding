@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}Leaderboard{% endblock %}
+{% block page_title %}Leaderboard{% endblock %}
+{% block content %}
+<div class="fade-up" style="max-width:700px">
+  <div class="card" style="margin-bottom:18px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+      <div>
+        <div class="card-ttl">Global Rankings</div>
+        <div class="card-sub">Updated in real-time based on points earned</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="loadBoard()"><i class="fas fa-sync-alt"></i> Refresh</button>
+    </div>
+
+    <!-- Top 3 podium -->
+    <div id="podium" style="display:none;justify-content:center;align-items:flex-end;gap:16px;margin-bottom:28px;padding:16px 0">
+      <div id="pod2" style="text-align:center;opacity:0.85">
+        <div style="font-size:22px;margin-bottom:6px">🥈</div>
+        <div class="av" style="margin:0 auto 6px;background:#94a3b8" id="av2">?</div>
+        <div style="font-size:12px;font-weight:700" id="name2">—</div>
+        <div style="font-size:11px;color:var(--text3)" id="pts2">—</div>
+      </div>
+      <div id="pod1" style="text-align:center">
+        <div style="font-size:30px;margin-bottom:6px">🥇</div>
+        <div class="av" style="margin:0 auto 6px;width:44px;height:44px;font-size:18px;background:#f59e0b" id="av1">?</div>
+        <div style="font-size:13px;font-weight:800" id="name1">—</div>
+        <div style="font-size:11px;color:var(--text3)" id="pts1">—</div>
+      </div>
+      <div id="pod3" style="text-align:center;opacity:0.75">
+        <div style="font-size:20px;margin-bottom:6px">🥉</div>
+        <div class="av" style="margin:0 auto 6px;background:#b45309" id="av3">?</div>
+        <div style="font-size:12px;font-weight:700" id="name3">—</div>
+        <div style="font-size:11px;color:var(--text3)" id="pts3">—</div>
+      </div>
+    </div>
+
+    <div id="lbLoading" style="color:var(--text3);font-size:13px;text-align:center;padding:28px">
+      <i class="fas fa-spinner fa-spin"></i> Loading rankings...
+    </div>
+    <div id="lbList"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-ttl" style="margin-bottom:14px">How Points Are Earned</div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div style="display:flex;align-items:center;justify-content:space-between;font-size:13px">
+        <div style="display:flex;align-items:center;gap:10px"><div class="stat-ic green" style="width:28px;height:28px;font-size:12px"><i class="fas fa-flag-checkered"></i></div><span class="text2">Complete all onboarding steps</span></div>
+        <span class="chip chip-green">+200 pts</span>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;font-size:13px">
+        <div style="display:flex;align-items:center;gap:10px"><div class="stat-ic blue" style="width:28px;height:28px;font-size:12px"><i class="fas fa-chevron-right"></i></div><span style="color:var(--text2)">Advance to next step</span></div>
+        <span class="chip chip-blue">+30 pts</span>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;font-size:13px">
+        <div style="display:flex;align-items:center;gap:10px"><div class="stat-ic violet" style="width:28px;height:28px;font-size:12px"><i class="fas fa-user-edit"></i></div><span style="color:var(--text2)">Update your profile</span></div>
+        <span class="chip chip-blue">+60 pts</span>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;font-size:13px">
+        <div style="display:flex;align-items:center;gap:10px"><div class="stat-ic cyan" style="width:28px;height:28px;font-size:12px"><i class="fas fa-eye"></i></div><span style="color:var(--text2)">Visit pages actively</span></div>
+        <span class="chip chip-blue">+8 pts</span>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;font-size:13px">
+        <div style="display:flex;align-items:center;gap:10px"><div class="stat-ic" style="width:28px;height:28px;font-size:12px;background:rgba(239,68,68,.14);color:var(--red)"><i class="fas fa-moon"></i></div><span style="color:var(--text2)">Inactivity detected</span></div>
+        <span class="chip chip-red">-10 pts</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function loadBoard(){
+  fetch('/api/leaderboard').then(r=>r.json()).then(data=>{
+    document.getElementById('lbLoading').style.display='none';
+    const list=document.getElementById('lbList');
+
+    // Podium for top 3
+    if(data.length>=2){
+      const pod=document.getElementById('podium');pod.style.display='flex';
+      if(data[0]){document.getElementById('av1').textContent=data[0].username[0].toUpperCase();document.getElementById('av1').style.background=data[0].avatar_color;document.getElementById('name1').textContent=data[0].username;document.getElementById('pts1').textContent=data[0].points+' pts'}
+      if(data[1]){document.getElementById('av2').textContent=data[1].username[0].toUpperCase();document.getElementById('av2').style.background=data[1].avatar_color;document.getElementById('name2').textContent=data[1].username;document.getElementById('pts2').textContent=data[1].points+' pts'}
+      if(data[2]){document.getElementById('av3').textContent=data[2].username[0].toUpperCase();document.getElementById('av3').style.background=data[2].avatar_color;document.getElementById('name3').textContent=data[2].username;document.getElementById('pts3').textContent=data[2].points+' pts'}
+    }
+
+    list.innerHTML=data.map(u=>{
+      const rankCls=u.rank===1?'g':u.rank===2?'s':u.rank===3?'b':'';
+      const rankIcon=u.rank===1?'🥇':u.rank===2?'🥈':u.rank===3?'🥉':u.rank;
+      const stepBar=`<div class="prog-wrap" style="width:80px;height:3px"><div class="prog-fill" style="width:${Math.min(100,(u.step-1)/5*100)}%"></div></div>`;
+      return `<div class="lb-row${u.is_current?' me':''}">
+        <div class="lb-rank ${rankCls}">${rankIcon}</div>
+        <div class="lb-user-info">
+          <div class="av" style="background:${u.avatar_color};width:32px;height:32px;font-size:13px">${u.username[0].toUpperCase()}</div>
+          <div>
+            <div class="lb-uname">${u.username}${u.is_current?' <span class="chip chip-blue" style="font-size:10px">You</span>':''}</div>
+            <div style="display:flex;align-items:center;gap:6px;margin-top:3px">${stepBar}<span class="lb-ustep">Step ${u.step}/5</span></div>
+          </div>
+        </div>
+        <div class="lb-pts">${u.points.toLocaleString()} pts</div>
+      </div>`;
+    }).join('');
+  });
+}
+loadBoard();
+</script>
+{% endblock %}

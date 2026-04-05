@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% block title %}Profile{% endblock %}
+{% block page_title %}My Profile{% endblock %}
+{% block content %}
+<div class="fade-up" style="max-width:760px">
+  <div class="card" style="margin-bottom:18px">
+    <div class="prof-hdr">
+      <div class="prof-av" id="profAv" style="background:{{ user.avatar_color }}">{{ user.username[0].upper() }}</div>
+      <div class="prof-info">
+        <div class="prof-name">{{ user.username }}</div>
+        <div class="prof-meta">Member since {{ joined }}</div>
+        <div class="prof-stats">
+          <div class="ps"><div class="ps-v">{{ points }}</div><div class="ps-l">Points</div></div>
+          <div class="ps"><div class="ps-v">{{ earned }}/{{ total_badges }}</div><div class="ps-l">Badges</div></div>
+        </div>
+      </div>
+      <div>
+        <span class="chip chip-blue" id="riskChip"><span class="loading">Analyzing...</span></span>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">
+    <!-- Avatar color picker -->
+    <div class="card">
+      <div class="card-hdr">
+        <div>
+          <div class="card-ttl">Avatar Color</div>
+          <div class="card-sub">Click a color to update your avatar</div>
+        </div>
+      </div>
+      <div class="color-row" id="colorRow">
+        {% for c in colors %}
+        <div class="col-opt {% if c == user.avatar_color %}sel{% endif %}" style="background:{{ c }}" onclick="setColor('{{ c }}')" title="{{ c }}"></div>
+        {% endfor %}
+      </div>
+      <div style="margin-top:16px;display:flex;align-items:center;gap:10px">
+        <div class="av" id="previewAv" style="background:{{ user.avatar_color }}">{{ user.username[0].upper() }}</div>
+        <span style="font-size:13px;color:var(--text2)">Preview</span>
+      </div>
+    </div>
+
+    <!-- Account info -->
+    <div class="card">
+      <div class="card-hdr">
+        <div>
+          <div class="card-ttl">Account Details</div>
+          <div class="card-sub">Your account information</div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div>
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text3);margin-bottom:5px">Username</div>
+          <div style="font-size:14px;font-weight:600">{{ user.username }}</div>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text3);margin-bottom:5px">Member Since</div>
+          <div style="font-size:14px">{{ joined }}</div>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text3);margin-bottom:5px">Risk Level</div>
+          <div style="font-size:14px" id="riskTxt"><span class="loading">Loading...</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Points history -->
+    <div class="card">
+      <div class="card-ttl" style="margin-bottom:14px">Points Breakdown</div>
+      <div style="display:flex;flex-direction:column;gap:10px" id="pointsBreakdown">
+        <div class="loading" style="font-size:13px;color:var(--text3)">Loading points...</div>
+      </div>
+    </div>
+
+    <!-- Quick links -->
+    <div class="card">
+      <div class="card-ttl" style="margin-bottom:14px">Quick Actions</div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <a href="/" class="btn btn-primary" style="justify-content:flex-start"><i class="fas fa-rocket"></i> Continue Onboarding</a>
+        <a href="/achievements" class="btn btn-ghost" style="justify-content:flex-start"><i class="fas fa-trophy"></i> View Achievements</a>
+        <a href="/leaderboard" class="btn btn-ghost" style="justify-content:flex-start"><i class="fas fa-ranking-star"></i> Check Leaderboard</a>
+        <a href="/dashboard" class="btn btn-ghost" style="justify-content:flex-start"><i class="fas fa-chart-line"></i> Open Dashboard</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let selectedColor='{{ user.avatar_color }}';
+
+function setColor(c){
+  selectedColor=c;
+  document.getElementById('previewAv').style.background=c;
+  document.querySelectorAll('.col-opt').forEach(e=>e.classList.remove('sel'));
+  event.target.classList.add('sel');
+  fetch('/api/profile/update',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({avatar_color:c})})
+    .then(r=>r.json()).then(d=>{
+      document.getElementById('profAv').style.background=c;
+      showToast('Avatar color updated!','success');
+    });
+}
+
+fetch('/api/summary').then(r=>r.json()).then(d=>{
+  const riskCls=d.risk==='Low Risk'?'chip-green':d.risk==='Medium Risk'?'chip-yellow':'chip-red';
+  document.getElementById('riskChip').innerHTML=`<span class="chip ${riskCls}">${d.risk}</span>`;
+  document.getElementById('riskTxt').innerHTML=`<span class="chip ${riskCls}" style="font-size:13px">${d.risk}</span>`;
+
+  const breakdown=[
+    {label:'Onboarding Steps',pts:d.step>1?(d.step-1)*30:0,icon:'fa-rocket',color:'blue'},
+    {label:'Task Completions',pts:d.completed?200:0,icon:'fa-check-circle',color:'green'},
+    {label:'Page Visits',pts:d.actions*8,icon:'fa-eye',color:'cyan'},
+    {label:'Profile Updates',pts:60,icon:'fa-user',color:'violet'},
+  ];
+  document.getElementById('pointsBreakdown').innerHTML=breakdown.map(b=>`
+    <div style="display:flex;align-items:center;gap:10px;font-size:13px">
+      <div class="stat-ic ${b.color}" style="width:28px;height:28px;font-size:12px;flex-shrink:0"><i class="fas ${b.icon}"></i></div>
+      <div style="flex:1;color:var(--text2)">${b.label}</div>
+      <div style="font-weight:700;color:var(--primary)">+${b.pts}</div>
+    </div>`).join('');
+});
+</script>
+{% endblock %}

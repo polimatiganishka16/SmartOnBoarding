@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Analytics Dashboard{% endblock %}
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+{% endblock %}
+{% block content %}
+<div class="fade-up">
+  <div class="stats-row" style="margin-bottom:22px">
+    <div class="stat-box" style="--line:linear-gradient(90deg,#6366f1,#a78bfa)">
+      <div class="stat-ic blue"><i class="fas fa-star"></i></div>
+      <div class="stat-v loading" id="dPoints">—</div>
+      <div class="stat-l">Total Points</div>
+    </div>
+    <div class="stat-box" style="--line:linear-gradient(90deg,#22d3ee,#6366f1)">
+      <div class="stat-ic cyan"><i class="fas fa-bolt"></i></div>
+      <div class="stat-v loading" id="dActions">—</div>
+      <div class="stat-l">Actions Taken</div>
+    </div>
+    <div class="stat-box" style="--line:linear-gradient(90deg,#22c55e,#22d3ee)">
+      <div class="stat-ic green"><i class="fas fa-clock"></i></div>
+      <div class="stat-v loading" id="dTime">—</div>
+      <div class="stat-l">Minutes Active</div>
+    </div>
+    <div class="stat-box" style="--line:linear-gradient(90deg,#a78bfa,#ec4899)">
+      <div class="stat-ic violet"><i class="fas fa-rocket"></i></div>
+      <div class="stat-v loading" id="dStep">—</div>
+      <div class="stat-l">Current Step</div>
+    </div>
+  </div>
+
+  <div class="db-grid">
+    <!-- Activity over time (big chart) -->
+    <div class="chart-box c8">
+      <div class="chart-hdr">
+        <div>
+          <div class="chart-ttl">Activity Over Time</div>
+          <div class="chart-sub">Actions recorded in the last 7 days</div>
+        </div>
+        <span class="chip chip-blue" id="trendChip">Loading...</span>
+      </div>
+      <canvas id="actChart" height="90"></canvas>
+    </div>
+
+    <!-- Risk indicator -->
+    <div class="chart-box c4">
+      <div class="chart-hdr">
+        <div>
+          <div class="chart-ttl">Risk Score</div>
+          <div class="chart-sub">AI-powered assessment</div>
+        </div>
+      </div>
+      <div class="risk-ring">
+        <div class="ring loading" id="riskRing">—</div>
+        <div class="ring-label" id="riskLabel">Analyzing...</div>
+        <div class="ring-sub" id="riskSub">Based on your activity patterns</div>
+      </div>
+    </div>
+
+    <!-- Action breakdown -->
+    <div class="chart-box c6">
+      <div class="chart-hdr">
+        <div>
+          <div class="chart-ttl">Action Breakdown</div>
+          <div class="chart-sub">What you've been doing</div>
+        </div>
+      </div>
+      <canvas id="actionsChart" height="120"></canvas>
+    </div>
+
+    <!-- Onboarding progress -->
+    <div class="chart-box c6">
+      <div class="chart-hdr">
+        <div>
+          <div class="chart-ttl">Onboarding Progress</div>
+          <div class="chart-sub">Steps completed</div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;padding-top:8px" id="stepsProgress"></div>
+    </div>
+
+    <!-- Recent activity feed -->
+    <div class="chart-box c12">
+      <div class="chart-hdr">
+        <div>
+          <div class="chart-ttl">Live Activity Feed</div>
+          <div class="chart-sub">Your most recent actions</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="loadData()"><i class="fas fa-sync-alt"></i> Refresh</button>
+      </div>
+      <div class="act-feed" id="actFeed">
+        <div class="loading" style="color:var(--text3);font-size:13px;padding:16px 0">Loading activity...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const COLORS={
+  primary:'#6366f1',cyan:'#22d3ee',violet:'#a78bfa',green:'#22c55e',
+  yellow:'#f59e0b',red:'#ef4444',pink:'#ec4899'
+};
+Chart.defaults.color='#475569';
+Chart.defaults.borderColor='rgba(255,255,255,0.06)';
+
+let actChart,actionsChart;
+
+function initCharts(activity,actions){
+  // Activity line chart
+  const actCtx=document.getElementById('actChart');
+  if(actChart)actChart.destroy();
+  actChart=new Chart(actCtx,{
+    type:'line',
+    data:{
+      labels:activity.map(d=>d.day),
+      datasets:[{
+        label:'Actions',data:activity.map(d=>d.count),
+        borderColor:COLORS.primary,backgroundColor:'rgba(99,102,241,.12)',
+        borderWidth:2,tension:.4,fill:true,pointBackgroundColor:COLORS.primary,pointRadius:4
+      }]
+    },
+    options:{plugins:{legend:{display:false}},scales:{y:{min:0,ticks:{stepSize:1}},x:{}}}
+  });
+  const total=activity.reduce((s,d)=>s+d.count,0);
+  const recent=activity.slice(-3).reduce((s,d)=>s+d.count,0);
+  const older=activity.slice(0,4).reduce((s,d)=>s+d.count,0);
+  const chip=document.getElementById('trendChip');
+  if(recent>older){chip.className='chip chip-green';chip.textContent='↑ Trending Up'}
+  else if(recent<older){chip.className='chip chip-red';chip.textContent='↓ Trending Down'}
+  else{chip.className='chip chip-blue';chip.textContent='→ Stable'}
+
+  // Actions donut
+  const aCtx=document.getElementById('actionsChart');
+  if(actionsChart)actionsChart.destroy();
+  const labels=Object.keys(actions);
+  const vals=Object.values(actions);
+  if(!labels.length){aCtx.parentElement.innerHTML+='<p style="color:var(--text3);font-size:13px;text-align:center">No actions yet — start your onboarding!</p>';return}
+  actionsChart=new Chart(aCtx,{
+    type:'doughnut',
+    data:{
+      labels:labels.map(l=>l.replace(/_/g,' ')),
+      datasets:[{data:vals,backgroundColor:[COLORS.primary,COLORS.cyan,COLORS.violet,COLORS.green,COLORS.yellow,COLORS.red,COLORS.pink],borderWidth:0}]
+    },
+    options:{plugins:{legend:{position:'right',labels:{font:{size:12},padding:10}}},cutout:'65%'}
+  });
+}
+
+function loadData(){
+  fetch('/api/summary').then(r=>r.json()).then(d=>{
+    document.getElementById('dPoints').textContent=d.points;
+    document.getElementById('dActions').textContent=d.actions;
+    document.getElementById('dTime').textContent=d.time;
+    document.getElementById('dStep').textContent=`${d.step}/${d.total_steps}`;
+    document.querySelectorAll('.stat-v').forEach(e=>e.classList.remove('loading'));
+
+    const risk=d.risk;
+    const ring=document.getElementById('riskRing');
+    ring.classList.remove('loading','low','medium','high');
+    const cls=risk==='Low Risk'?'low':risk==='Medium Risk'?'medium':'high';
+    ring.classList.add(cls);ring.textContent=risk.split(' ')[0];
+    document.getElementById('riskLabel').textContent=risk;
+
+    // Steps progress
+    const steps=['Welcome','Set Up Profile','Explore Dashboard','AI Recommendations','Achievements'];
+    let html='';
+    for(let i=0;i<5;i++){
+      const done=i<d.step-1;const cur=i===d.step-1&&!d.completed;
+      html+=`<div style="display:flex;align-items:center;gap:12px;font-size:13px">
+        <div style="width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0;background:${done||d.completed?'var(--green)':cur?'var(--primary)':'rgba(255,255,255,.07)'};color:${done||cur||d.completed?'#fff':'var(--text3)'}">${done||d.completed?'✓':i+1}</div>
+        <div style="flex:1;color:${done||d.completed?'var(--text3)':cur?'var(--text)':'var(--text3)'}">${steps[i]}</div>
+        <span class="chip ${done||d.completed?'chip-green':cur?'chip-blue':''}${!done&&!cur?'':''}" style="font-size:10px">${done||d.completed?'Done':cur?'Active':'Pending'}</span>
+      </div>`;
+    }
+    document.getElementById('stepsProgress').innerHTML=html;
+  });
+
+  // Activity feed from actions
+  fetch('/api/chart/actions').then(r=>r.json()).then(d=>{
+    const feed=document.getElementById('actFeed');
+    const cols={'page_visit':COLORS.cyan,'next':COLORS.primary,'task_completed':COLORS.green,'inactive':COLORS.red,'profile_updated':COLORS.violet,'login':COLORS.yellow};
+    const labels={'page_visit':'Visited a page','next':'Advanced to next step','task_completed':'Completed onboarding','inactive':'Inactivity detected','profile_updated':'Updated profile','login':'Signed in'};
+    const entries=Object.entries(d);
+    if(!entries.length){feed.innerHTML='<div style="color:var(--text3);font-size:13px;padding:14px 0">No activity yet.</div>';return}
+    feed.innerHTML=entries.map(([k,v])=>`<div class="act-row">
+      <div class="act-dot" style="background:${cols[k]||COLORS.primary}"></div>
+      <div class="act-txt">${labels[k]||k.replace(/_/g,' ')}</div>
+      <span class="chip chip-blue" style="font-size:10px">${v}×</span>
+    </div>`).join('');
+  });
+
+  Promise.all([
+    fetch('/api/chart/activity').then(r=>r.json()),
+    fetch('/api/chart/actions').then(r=>r.json())
+  ]).then(([activity,actions])=>initCharts(activity,actions));
+}
+
+loadData();
+setInterval(loadData,20000);
+</script>
+{% endblock %}

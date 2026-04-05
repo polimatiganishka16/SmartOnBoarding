@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+{% block title %}Onboarding{% endblock %}
+{% block page_title %}Onboarding Journey{% endblock %}
+{% block content %}
+<div class="fade-up">
+  {% if completed %}
+  <div class="completion">
+    <span class="completion-em">🎉</span>
+    <div class="completion-ttl">Onboarding Complete!</div>
+    <p class="completion-txt">You've finished all {{ total_steps }} steps. Your new badges are waiting and the leaderboard has been updated with your score!</p>
+    <div style="display:flex;gap:12px;justify-content:center;margin-top:20px;flex-wrap:wrap">
+      <a href="/achievements" class="btn btn-success"><i class="fas fa-trophy"></i> View Achievements</a>
+      <a href="/leaderboard" class="btn btn-ghost"><i class="fas fa-ranking-star"></i> Leaderboard</a>
+      <a href="/dashboard" class="btn btn-ghost"><i class="fas fa-chart-line"></i> Dashboard</a>
+    </div>
+  </div>
+  {% else %}
+  <div class="card" style="margin-bottom:18px;padding:18px 22px">
+    <div class="ob-prog-hdr">
+      <span class="ob-prog-l">Overall Progress</span>
+      <span class="ob-prog-v">Step {{ step_num }} of {{ total_steps }}</span>
+    </div>
+    <div class="prog-wrap" style="height:6px;margin-bottom:10px">
+      <div class="prog-fill" style="width:{{ progress_pct }}%"></div>
+    </div>
+    <div class="steps-dots">
+      {% for s in steps %}
+      <div class="s-dot {% if loop.index < step_num %}done{% elif loop.index == step_num %}cur{% endif %}"></div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="ob-layout">
+    <div>
+      <div class="card" id="stepCard">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <span class="ob-step-num">Step {{ step_num }} of {{ total_steps }}</span>
+          <span class="chip chip-blue"><i class="fas fa-clock"></i> {{ step.duration }}</span>
+        </div>
+        <h2 class="ob-ttl">{{ step.title }}</h2>
+        <p class="ob-desc">{{ step.description }}</p>
+        <div class="ob-task">
+          <i class="fas fa-list-check"></i>
+          <div>
+            <div class="ob-task-l">Your Task</div>
+            <div class="ob-task-t">{{ step.task }}</div>
+          </div>
+        </div>
+        <div class="ob-tip">
+          <i class="fas fa-lightbulb"></i>
+          <span>{{ step.tip }}</span>
+        </div>
+        {% if not completed %}
+        <div class="ob-actions">
+          {% if step_num > 1 %}
+          <button class="btn btn-ghost" onclick="prevStep()"><i class="fas fa-chevron-left"></i> Back</button>
+          {% endif %}
+          <button class="btn btn-primary" id="nextBtn" onclick="nextStep()">
+            {% if step_num == total_steps %}
+            <i class="fas fa-flag-checkered"></i> Complete Onboarding
+            {% else %}
+            Continue <i class="fas fa-chevron-right"></i>
+            {% endif %}
+          </button>
+        </div>
+        {% endif %}
+      </div>
+
+      <div class="stats-row" style="margin-top:18px">
+        <div class="stat-box"><div class="stat-ic blue"><i class="fas fa-star"></i></div><div class="stat-v loading" id="sPoints">—</div><div class="stat-l">Points</div></div>
+        <div class="stat-box"><div class="stat-ic cyan"><i class="fas fa-bolt"></i></div><div class="stat-v loading" id="sActions">—</div><div class="stat-l">Actions</div></div>
+        <div class="stat-box"><div class="stat-ic green"><i class="fas fa-shield-halved"></i></div><div class="stat-v loading" id="sRisk">—</div><div class="stat-l">Risk Level</div></div>
+        <div class="stat-box"><div class="stat-ic yellow"><i class="fas fa-clock"></i></div><div class="stat-v loading" id="sTime">—</div><div class="stat-l">Est. Minutes</div></div>
+      </div>
+    </div>
+
+    <div class="ob-side">
+      <div class="ai-box">
+        <div class="ai-hdr">
+          <div class="ai-mark"><i class="fas fa-brain"></i></div>
+          <div><div class="ai-ttl">AI Assistant</div><div class="ai-sub">Personalized insights</div></div>
+        </div>
+        <p class="ai-msg" id="aiMsg"><span class="loading">Analyzing your performance...</span></p>
+        <div id="aiChip" style="margin-bottom:10px"></div>
+        <div id="abVariant" style="font-size:11px;color:var(--text3)"></div>
+      </div>
+
+      <div class="steps-panel">
+        <div class="steps-panel-ttl">Step Overview</div>
+        {% for s in steps %}
+        <div class="sp-item {% if s.id == step_num %}cur{% elif s.id < step_num %}done{% endif %}">
+          <div class="sp-num {% if s.id < step_num %}done{% elif s.id == step_num %}cur{% endif %}">
+            {% if s.id < step_num %}<i class="fas fa-check" style="font-size:8px"></i>{% else %}{{ s.id }}{% endif %}
+          </div>
+          <div>
+            <div style="font-size:13px;font-weight:{% if s.id == step_num %}600{% else %}400{% endif %}">{{ s.title }}</div>
+            <div style="font-size:11px;color:var(--text3)">{{ s.duration }}</div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function loadSummary(){
+  fetch('/api/summary').then(r=>r.json()).then(d=>{
+    document.getElementById('sPoints').textContent=d.points;
+    document.getElementById('sActions').textContent=d.actions;
+    const riskShort=d.risk.replace(' Risk','');
+    document.getElementById('sRisk').textContent=riskShort;
+    document.getElementById('sTime').textContent=d.time;
+    document.querySelectorAll('.stat-v').forEach(e=>e.classList.remove('loading'));
+  });
+}
+function loadRec(){
+  fetch('/api/recommend').then(r=>r.json()).then(d=>{
+    document.getElementById('aiMsg').textContent=d.msg;
+    const m={success:['chip-green','fa-check-circle','Great Progress!'],warning:['chip-yellow','fa-exclamation-triangle','Needs Attention'],info:['chip-blue','fa-info-circle','On Track']};
+    const [cls,ic,lbl]=m[d.type]||m.info;
+    document.getElementById('aiChip').innerHTML=`<span class="chip ${cls}"><i class="fas ${ic}"></i> ${lbl}</span>`;
+  });
+}
+function loadAB(){
+  fetch('/api/ab-test').then(r=>r.json()).then(d=>{
+    document.getElementById('abVariant').textContent=`A/B Test: Variant ${d.variant}`;
+  });
+}
+function nextStep(){
+  const btn=document.getElementById('nextBtn');
+  btn.innerHTML='<i class="fas fa-spinner fa-spin"></i>';btn.disabled=true;
+  fetch('/api/next',{method:'POST'}).then(r=>r.json()).then(d=>{location.reload()});
+}
+function prevStep(){
+  fetch('/api/prev',{method:'POST'}).then(()=>location.reload());
+}
+
+// Inactivity detection
+let inactTimer;
+function resetInact(){
+  clearTimeout(inactTimer);
+  inactTimer=setTimeout(()=>{
+    fetch('/api/track',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'inactive'})});
+    showToast('Inactivity detected — your score may be affected.','warning');
+  },12000);
+}
+['mousemove','keydown','click','scroll'].forEach(e=>document.addEventListener(e,resetInact));
+resetInact();
+
+loadSummary();loadRec();loadAB();
+setInterval(loadSummary,15000);
+</script>
+{% endblock %}

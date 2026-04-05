@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign In — SmartOnboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="login-wrap">
+  <div class="login-side">
+    <div class="login-brand fade-up">
+      <div class="login-logo">SO</div>
+      <h1>SmartOnboard</h1>
+      <p>An intelligent onboarding platform powered by AI. Track progress, earn rewards, and level up your skills.</p>
+      <div class="feature-rows">
+        <div class="feat"><div class="feat-ic"><i class="fas fa-brain"></i></div>AI-powered risk scoring & recommendations</div>
+        <div class="feat"><div class="feat-ic"><i class="fas fa-chart-line"></i></div>Real-time activity tracking & analytics</div>
+        <div class="feat"><div class="feat-ic"><i class="fas fa-trophy"></i></div>Gamified achievements & leaderboard</div>
+        <div class="feat"><div class="feat-ic"><i class="fas fa-flask"></i></div>A/B testing for personalized experiences</div>
+      </div>
+    </div>
+  </div>
+  <div class="login-form-side">
+    <div class="login-form-inner fade-up">
+      <h2>Welcome back</h2>
+      <p class="sub">Sign in to continue your onboarding journey</p>
+      <div class="tab-toggle">
+        <div class="tab-btn on" id="tabLogin" onclick="setTab('login')">Sign In</div>
+        <div class="tab-btn" id="tabSignup" onclick="setTab('signup')">Create Account</div>
+      </div>
+      <div class="form-err" id="formErr"></div>
+      <div class="field"><label>Username</label><input class="inp" id="uname" placeholder="Enter your username" autocomplete="username"></div>
+      <div class="field"><label>Password</label><input class="inp" id="pwd" type="password" placeholder="Enter your password" autocomplete="current-password"></div>
+      <button class="btn btn-primary" style="width:100%;justify-content:center;padding:12px" id="submitBtn" onclick="submit()">
+        <i class="fas fa-arrow-right-to-bracket"></i> <span id="submitTxt">Sign In</span>
+      </button>
+      <p style="font-size:12px;color:var(--text3);text-align:center;margin-top:16px">By continuing, you agree to our terms of service.</p>
+    </div>
+  </div>
+</div>
+<script>
+  let mode = 'login';
+  function btnLabel(t){ return `<i class="fas fa-arrow-right-to-bracket"></i> ${t==='login'?'Sign In':'Create Account'}`; }
+  function resetBtn(){ const b=document.getElementById('submitBtn'); b.innerHTML=btnLabel(mode); b.disabled=false; }
+  function setTab(t){
+    mode=t;
+    document.getElementById('tabLogin').className='tab-btn'+(t==='login'?' on':'');
+    document.getElementById('tabSignup').className='tab-btn'+(t==='signup'?' on':'');
+    resetBtn();
+    const e=document.getElementById('formErr'); e.style.display='none'; e.style.cssText='display:none';
+  }
+  function showErr(msg){const e=document.getElementById('formErr');e.textContent=msg;e.style.cssText='display:block';e.style.display='block';}
+  function showSuccess(msg){const e=document.getElementById('formErr');e.textContent=msg;e.style.cssText='display:block;background:rgba(34,197,94,.1);border-color:rgba(34,197,94,.3);color:var(--green)';}
+  function submit(){
+    const u=document.getElementById('uname').value.trim();
+    const p=document.getElementById('pwd').value;
+    if(!u||!p){showErr('Please fill in both fields.');return}
+    const btn=document.getElementById('submitBtn');
+    btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Please wait...';btn.disabled=true;
+    fetch('/'+mode,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:u,password:p})})
+      .then(r=>r.json().then(d=>({ok:r.ok,d})))
+      .then(({ok,d})=>{
+        if(mode==='login'&&d.msg==='ok'){location='/'}
+        else if(mode==='signup'&&d.msg==='created'){mode='login';document.getElementById('tabLogin').className='tab-btn on';document.getElementById('tabSignup').className='tab-btn';resetBtn();showSuccess('Account created! Please sign in.');}
+        else{showErr(d.msg||'Something went wrong');resetBtn();}
+      }).catch(()=>{showErr('Network error. Please try again.');resetBtn();});
+  }
+  document.addEventListener('keydown',e=>{if(e.key==='Enter')submit()});
+</script>
+</body>
+</html>
